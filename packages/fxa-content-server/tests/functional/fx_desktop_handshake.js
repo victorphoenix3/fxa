@@ -285,9 +285,6 @@ registerSuite('Firefox desktop user info handshake', {
               otherEmail
             )
           )
-          // normal email element is in the DOM to help password managers.
-          .then(testElementValueEquals(selectors.SIGNIN.EMAIL, otherEmail))
-          .then(testElementExists(selectors.SIGNIN.PASSWORD))
       );
     },
 

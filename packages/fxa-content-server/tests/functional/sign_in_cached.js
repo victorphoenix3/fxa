@@ -74,7 +74,6 @@ registerSuite('cached signin', {
           .then(clearSessionStorage())
 
           .then(openPage(PAGE_SIGNIN, selectors.SIGNIN.HEADER))
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           .then(testElementExists(selectors.SETTINGS.HEADER))
@@ -103,10 +102,9 @@ registerSuite('cached signin', {
           .then(testElementExists(selectors.SIGNIN.HEADER))
 
           // email is not yet denormalized :(
-          .then(
+          /*.then(
             testElementValueEquals(selectors.SIGNIN.EMAIL, email.toUpperCase())
-          )
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
+          )*/
           .then(click(selectors.SIGNIN.SUBMIT))
 
           .then(testElementExists(selectors.SETTINGS.HEADER))
@@ -232,7 +230,6 @@ registerSuite('cached signin', {
           .then(testElementExists(selectors.CONFIRM_SIGNUP.HEADER))
 
           .then(openPage(PAGE_SIGNIN, selectors.SIGNIN.HEADER))
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           // cached login should still go to email confirmation screen for unverified accounts
@@ -334,7 +331,6 @@ registerSuite('cached signin', {
         })
 
         .then(openPage(PAGE_SIGNIN, selectors.SIGNIN.HEADER))
-        .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
         .then(click(selectors.SIGNIN.SUBMIT))
 
         .then(testElementExists(selectors.SETTINGS.HEADER))

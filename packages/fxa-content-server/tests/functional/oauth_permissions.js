@@ -88,9 +88,8 @@ registerSuite('oauth permissions for untrusted reliers', {
           .then(click(selectors['123DONE'].BUTTON_SIGNIN))
 
           // user signed in previously and should not need to enter
-          // their email address.
+          // either their email address or password
           .then(testElementExists(selectors.SIGNIN.HEADER))
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           // no permissions additional asked for
@@ -206,9 +205,8 @@ registerSuite('oauth permissions for untrusted reliers', {
           .then(click(selectors['123DONE'].BUTTON_SIGNIN))
 
           // user signed in previously and should not need to enter
-          // their email address.
+          // either their email address or password
           .then(testElementExists(selectors.SIGNIN.HEADER))
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           .then(testElementExists(selectors['123DONE'].AUTHENTICATED))
@@ -282,9 +280,8 @@ registerSuite('oauth permissions for untrusted reliers', {
 
           .then(closeCurrentWindow())
 
+          // user is already signed in, does not need to enter their password.
           .then(click(selectors['123DONE'].BUTTON_SIGNIN))
-
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           // display name is now available
@@ -314,6 +311,7 @@ registerSuite('oauth permissions for untrusted reliers', {
               'test user'
             )
           )
+          // user is already signed in, does not need to enter their password.
           .then(click(selectors.SETTINGS_DISPLAY_NAME.SUBMIT))
           .then(visibleByQSA(selectors.SETTINGS.SUCCESS))
 
@@ -326,7 +324,6 @@ registerSuite('oauth permissions for untrusted reliers', {
             })
           )
 
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           .then(testElementExists(selectors.OAUTH_PERMISSIONS.HEADER))
@@ -346,7 +343,6 @@ registerSuite('oauth permissions for untrusted reliers', {
           .then(click(selectors['123DONE'].LINK_LOGOUT))
           .then(click(selectors['123DONE'].BUTTON_SIGNIN))
 
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           // the second time through, profile:email, profile:uid, and
@@ -383,7 +379,6 @@ registerSuite('oauth permissions for untrusted reliers', {
 
           .then(openFxaFromUntrustedRp('signin'))
 
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           .then(
@@ -404,7 +399,6 @@ registerSuite('oauth permissions for untrusted reliers', {
           // display_name was de-selected last time.
           .then(click(selectors['123DONE'].BUTTON_SIGNIN))
 
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(
             click(selectors.SIGNIN.SUBMIT, selectors['123DONE'].AUTHENTICATED)
           )
@@ -503,7 +497,6 @@ registerSuite('oauth permissions for trusted reliers', {
             openFxaFromTrustedRp('signin', { query: { prompt: 'consent' } })
           )
 
-          .then(type(selectors.SIGNIN.PASSWORD, PASSWORD))
           .then(click(selectors.SIGNIN.SUBMIT))
 
           // since consent is now requested, user should see prompt

@@ -53,10 +53,7 @@ const View = FormView.extend({
     const account = this.getAccount();
     this.listenTo(account, 'change:accessToken', () => {
       // if no access token and password is not visible we need to show the password field.
-      if (
-        !account.has('accessToken') &&
-        this.$(PASSWORD_SELECTOR).is(':hidden')
-      ) {
+      if (!account.has('accessToken')) {
         this.model.set('chooserAskForPassword', true);
         return this.render().then(() => this.setDefaultPlaceholderAvatar());
       }

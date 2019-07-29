@@ -26,7 +26,6 @@ const {
   pollUntilGoneByQSA,
   switchToWindow,
   testElementExists,
-  type,
 } = FunctionalHelpers;
 
 var email;
@@ -72,7 +71,6 @@ registerSuite('oauth settings clients', {
           .click()
           .end()
 
-          .then(type('#password', PASSWORD))
           .then(click('#submit-btn'))
 
           .then(testElementExists('#fxa-permissions-header'))

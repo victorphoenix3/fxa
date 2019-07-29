@@ -62,22 +62,20 @@ describe('views/mixins/cached-credentials-mixin', () => {
       assert.isTrue(view.isPasswordNeededForAccount(account));
     });
 
-    it('asks for password if the relier wants keys (Sync)', () => {
-      account.set('email', 'testuser@testuser.com');
-      sinon.stub(relier, 'wantsKeys').callsFake(() => true);
+    it('asks for a password if the account has no sessionToken', () => {
+      account.unset('sessionToken');
+      sinon.stub(relier, 'wantsKeys').callsFake(() => false);
       sinon.stub(user, 'isSyncAccount').callsFake(() => true);
       model.unset('chooserAskForPassword');
-      sinon
-        .stub(view, 'getPrefillEmail')
-        .callsFake(() => 'testuser@testuser.com');
+      sinon.stub(view, 'getPrefillEmail').callsFake(() => '');
 
       assert.isTrue(view.isPasswordNeededForAccount(account));
     });
 
-    it('asks for the password if the stored session is not from sync', () => {
+    it('asks for password if the relier wants keys (Sync)', () => {
       account.set('email', 'testuser@testuser.com');
-      sinon.stub(relier, 'wantsKeys').callsFake(() => false);
-      sinon.stub(user, 'isSyncAccount').callsFake(() => false);
+      sinon.stub(relier, 'wantsKeys').callsFake(() => true);
+      sinon.stub(user, 'isSyncAccount').callsFake(() => true);
       model.unset('chooserAskForPassword');
       sinon
         .stub(view, 'getPrefillEmail')

@@ -2337,7 +2337,7 @@ const enableTotp = thenify(function() {
 const destroySessionForEmail = thenify(function(email) {
   return this.parent.then(getStoredAccountByEmail(email)).then(account => {
     if (!account) {
-      return false;
+      throw new Error('could not find account');
     }
     const client = getFxaClient();
     return client.sessionDestroy(account.sessionToken);

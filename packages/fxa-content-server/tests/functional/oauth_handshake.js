@@ -26,9 +26,7 @@ const createUser = FunctionalHelpers.createUser;
 const fillOutSignIn = FunctionalHelpers.fillOutSignIn;
 const openFxaFromRp = FunctionalHelpers.openFxaFromRp;
 const noSuchElement = FunctionalHelpers.noSuchElement;
-const testElementExists = FunctionalHelpers.testElementExists;
 const testElementTextEquals = FunctionalHelpers.testElementTextEquals;
-const testElementValueEquals = FunctionalHelpers.testElementValueEquals;
 const thenify = FunctionalHelpers.thenify;
 const visibleByQSA = FunctionalHelpers.visibleByQSA;
 
@@ -157,9 +155,8 @@ registerSuite('Firefox desktop user info handshake - OAuth flows', {
               otherEmail
             )
           )
-          // normal email element is in the DOM to help password managers.
-          .then(testElementValueEquals(selectors.SIGNIN.EMAIL, otherEmail))
-          .then(testElementExists(selectors.SIGNIN.PASSWORD))
+          // User can sign in with cached credentials, no password needed.
+          .then(noSuchElement(selectors.SIGNIN.PASSWORD))
       );
     },
   },
