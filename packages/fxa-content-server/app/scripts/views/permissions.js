@@ -267,7 +267,7 @@ var View = FormView.extend(
     },
 
     submit() {
-      var account = this.getAccount();
+      const account = this.getAccount();
 
       this.logViewEvent('accept');
 
@@ -276,7 +276,7 @@ var View = FormView.extend(
         this._getFormPermissions()
       );
 
-      return this.user.setAccount(account).then(this.onSubmitComplete);
+      return this.onSubmitComplete(account);
     },
 
     _previousView() {

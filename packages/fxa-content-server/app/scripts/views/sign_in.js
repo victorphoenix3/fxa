@@ -51,11 +51,20 @@ const View = FormView.extend({
     // accessToken to be invalidated, in which case the view
     // should be re-rendered with the default avatar.
     const account = this.getAccount();
+
+    const renderWithDefaultAvatar = () => {
+      return this.render().then(() => this.setDefaultPlaceholderAvatar());
+    };
+
     this.listenTo(account, 'change:accessToken', () => {
-      // if no access token and password is not visible we need to show the password field.
       if (!account.has('accessToken')) {
-        this.model.set('chooserAskForPassword', true);
-        return this.render().then(() => this.setDefaultPlaceholderAvatar());
+        return renderWithDefaultAvatar();
+      }
+    });
+
+    this.listenTo(account, 'change:sessionToken', () => {
+      if (!account.has('sessionToken')) {
+        return renderWithDefaultAvatar();
       }
     });
 

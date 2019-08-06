@@ -132,7 +132,7 @@ var User = Backbone.Model.extend({
       return accountData;
     }
 
-    return new Account(accountData, {
+    const account = new Account(accountData, {
       fxaClient: this._fxaClient,
       metrics: this._metrics,
       notifier: this._notifier,
@@ -142,6 +142,10 @@ var User = Backbone.Model.extend({
       sentryMetrics: this.sentryMetrics,
       subscriptionsConfig: this._subscriptionsConfig,
     });
+
+    this.listenTo(account, 'change', this.setAccount);
+
+    return account;
   },
 
   isSyncAccount(account) {
@@ -157,24 +161,7 @@ var User = Backbone.Model.extend({
    *  If no user is signed in, rejects with an `INVALID_TOKEN` error.
    */
   sessionStatus(account = this.getSignedInAccount()) {
-    return account.sessionStatus().then(
-      () => {
-        // The session info may have changed since when it was last stored.
-        // The Account model has already updated itself, now store the server's
-        // view of the world. This will store the canonicalized email for everyone
-        // that fetches the account afterwards.
-        this.setAccount(account);
-        return account;
-      },
-      err => {
-        // an account that was previously signed in is no longer considered signed in,
-        // it's sessionToken field will have been updated. Store the account.
-        if (AuthErrors.is(err, 'INVALID_TOKEN') && !account.isDefault()) {
-          this.setAccount(account);
-        }
-        throw err;
-      }
-    );
+    return account.sessionStatus().then(() => account);
   },
 
   getSignedInAccount() {
@@ -308,6 +295,8 @@ var User = Backbone.Model.extend({
       this.clearSignedInAccount();
     }
 
+    this.stopListening(account);
+
     var accounts = this._accounts();
     var uid = account.get('uid');
     delete accounts[uid];
@@ -335,10 +324,10 @@ var User = Backbone.Model.extend({
 
   // Stores a new account and sets it as the current account.
   setSignedInAccount(accountData) {
-    var account = this.initAccount(accountData);
-    account.set('lastLogin', Date.now());
+    return Promise.resolve().then(() => {
+      const account = this.initAccount(accountData);
+      account.set('lastLogin', Date.now());
 
-    return this.setAccount(account).then(account => {
       this._cachedSignedInAccount = account;
       this._setSignedInAccountUid(account.get('uid'));
       return account;
@@ -348,6 +337,7 @@ var User = Backbone.Model.extend({
   // Hydrate the account then persist it
   setAccount(accountData) {
     var account = this.initAccount(accountData);
+    console.log('setting account', account);
 
     return account.fetch().then(() => {
       this._persistAccount(account);

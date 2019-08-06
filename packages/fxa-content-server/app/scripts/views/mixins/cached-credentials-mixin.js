@@ -45,9 +45,9 @@ export default {
 
     // Ask when 'chooserAskForPassword' is explicitly set.
     // This happens in response to an expired session token.
-    if (this.model.get('chooserAskForPassword') === true) {
+    /*if (this.model.get('chooserAskForPassword') === true) {
       return true;
-    }
+    }*/
 
     // Ask when a prefill email does not match the account email.
     const prefillEmail = this.getPrefillEmail();
@@ -71,7 +71,7 @@ export default {
     return this.signIn(account, null).catch(() => {
       this.user.removeAccount(account);
       this.formPrefill.set(account.pick('email'));
-      this.model.set('chooserAskForPassword', true);
+      //this.model.set('chooserAskForPassword', true);
       return this.render().then(() => {
         return this.displayError(AuthErrors.toError('SESSION_EXPIRED'));
       });

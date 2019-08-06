@@ -81,16 +81,14 @@ const View = BaseView.extend({
 
   _gotoNextScreen() {
     const account = this.getAccount();
-    return this.user.setAccount(account).then(() => {
-      this.logViewEvent('verification.success');
-      this.notifier.trigger('verification.success');
+    this.logViewEvent('verification.success');
+    this.notifier.trigger('verification.success');
 
-      var brokerMethod = this.isSignUp()
-        ? 'afterSignUpConfirmationPoll'
-        : 'afterSignInConfirmationPoll';
+    const brokerMethod = this.isSignUp()
+      ? 'afterSignUpConfirmationPoll'
+      : 'afterSignInConfirmationPoll';
 
-      return this.invokeBrokerMethod(brokerMethod, account);
-    });
+    return this.invokeBrokerMethod(brokerMethod, account);
   },
 
   resend() {

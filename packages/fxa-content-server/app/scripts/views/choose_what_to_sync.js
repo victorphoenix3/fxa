@@ -94,13 +94,11 @@ const View = FormView.extend(
         offeredSyncEngines,
       });
 
-      return this.user.setAccount(account).then(account => {
-        this.notifier.trigger(
-          'set-sync-engines',
-          offeredSyncEngines.filter(e => declinedSyncEngines.indexOf(e) === -1)
-        );
-        return this.onSubmitComplete(account);
-      });
+      this.notifier.trigger(
+        'set-sync-engines',
+        offeredSyncEngines.filter(e => declinedSyncEngines.indexOf(e) === -1)
+      );
+      return this.onSubmitComplete(account);
     },
 
     /**

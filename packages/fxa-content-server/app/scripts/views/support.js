@@ -58,7 +58,7 @@ const SupportView = BaseView.extend({
 
     return account.fetchActiveSubscriptions().then(subscriptions => {
       if (subscriptions.length > 0) {
-        return account.fetchProfile().then(() => this.user.setAccount(account));
+        return account.fetchProfile();
       } else {
         // Note that if a user landed here, it is because:
         // a) they accessed the page directly, as the button for this page is

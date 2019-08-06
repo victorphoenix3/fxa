@@ -622,11 +622,14 @@ const Account = Backbone.Model.extend(
           return updatedSessionData;
         })
         .catch(err => {
-          // The `INCORRECT_EMAIL_CASE` can be returned if a user is attempting to login with a different
-          // email case than what the account was created with or if they changed their primary email address.
-          // In both scenarios, the content-server needs to know the original account email to hash
-          // the user's password with.
-          if (AuthErrors.is(err, 'INCORRECT_EMAIL_CASE')) {
+          if (AuthErrors.is(err, 'INVALID_TOKEN')) {
+            // sessionToken is invalid, kill it.
+            this.discardSessionToken();
+          } else if (AuthErrors.is(err, 'INCORRECT_EMAIL_CASE')) {
+            // The `INCORRECT_EMAIL_CASE` can be returned if a user is attempting to login with a different
+            // email case than what the account was created with or if they changed their primary email address.
+            // In both scenarios, the content-server needs to know the original account email to hash
+            // the user's password with.
             // Save the original email that was used for login. This value will be
             // sent to the auth-server so that it can correctly look the account.
             this.set('originalLoginEmail', email);
