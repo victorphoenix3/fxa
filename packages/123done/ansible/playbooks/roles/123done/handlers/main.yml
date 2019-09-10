@@ -3,7 +3,7 @@
 - name: install 123done dependencies
   become: true
   become_user: app
-  npm: path=/home/app/123done
+  npm: path=/home/app/fxa/packages/123done
   notify: restart 123done-web
 
 - name: restart 123done-web

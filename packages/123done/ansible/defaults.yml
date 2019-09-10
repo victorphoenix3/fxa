@@ -2,7 +2,7 @@
 owner: fxa
 keyname: jrgm
 region: us-west-2
-one23done_git_repo: https://github.com/mozilla/123done.git
-one23done_git_version: oauth
+one23done_git_repo: https://github.com/mozilla/fxa.git
+one23done_git_version: master
 hosted_zone: lcip.org
 ssl_certificate_name: arn:aws:acm:us-west-2:927034868273:certificate/ef6bb380-b02e-4433-9355-aec09dedd381
