@@ -2,9 +2,10 @@
 
 - name: install redis
   become: true
-  yum: name={{ item }} state=present enablerepo=epel
-  with_items:
-    - redis
+  yum: 
+    name: redis
+    state: present 
+    enablerepo: epel
 
 - name: start redis
   become: true

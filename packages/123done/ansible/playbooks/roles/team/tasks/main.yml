@@ -2,14 +2,15 @@
 
 - name: install human tools
   become: true
-  yum: name={{ item }} state=present
-  with_items:
-    - emacs-nox
-    - htop
-    - lsof
-    - mlocate
-    - strace
-    - tmux
+  yum:
+    name: 
+      - emacs-nox
+      - htop
+      - lsof
+      - mlocate
+      - strace
+      - tmux
+    state: present
 
 - name: get team public keys
   git: repo=https://github.com/mozilla/identity-pubkeys.git
