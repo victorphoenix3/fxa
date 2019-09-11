@@ -8,7 +8,7 @@
 
 - name: install node
   become: true
-  command: /usr/bin/nave usemain 10.16.3
+  command: /usr/bin/nave usemain 12.10.0
   # TODO detect actual changes
   changed_when: false
 

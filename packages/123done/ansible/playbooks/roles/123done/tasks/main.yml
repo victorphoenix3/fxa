@@ -17,6 +17,7 @@
 
 - name: make /home/app/123done
   become: true
+  become_user: app
   file: path=/home/app/123done mode=go+rx state=directory
 
 - name: configure 123done
