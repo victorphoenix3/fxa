@@ -4,37 +4,106 @@
 
 'use strict';
 
-const error = require('./error');
+const Redis = require('ioredis');
+const { readdirSync, readFileSync } = require('fs');
+const { basename, extname, resolve } = require('path');
 
-module.exports = (config, log) => {
-  const redis = require('../../fxa-shared/redis')(config, log);
-  if (!redis) {
-    return;
+const scriptNames = readdirSync(resolve(__dirname, 'luaScripts'), {
+  withFileTypes: true,
+})
+  .filter(de => de.isFile() && extname(de.name) === '.lua')
+  .map(de => basename(de.name, '.lua'));
+
+function readScript(name) {
+  return readFileSync(resolve(__dirname, 'luaScripts', `${name}.lua`), {
+    encoding: 'utf8',
+  });
+}
+
+class FxaRedis {
+  constructor(config, log) {
+    config.keyPrefix = config.prefix;
+    this.log = log;
+    this.redis = new Redis(config);
+    scriptNames.forEach(name => this.defineCommand(name));
   }
 
-  return Object.entries(redis).reduce((object, [key, value]) => {
-    if (typeof value === 'function') {
-      object[key] = async (...args) => {
-        try {
-          return await value(...args);
-        } catch (err) {
-          if (err.message === 'redis.watch.conflict') {
-            // This error is nothing to worry about, just a sign that our
-            // protection against concurrent updates is working correctly.
-            // fxa-shared is responsible for logging.
-            throw error.redisConflict();
-          }
+  defineCommand(name, numberOfKeys = 1) {
+    this.redis.defineCommand(name, {
+      lua: readScript(name),
+      numberOfKeys,
+    });
+  }
 
-          // If you see this line in a stack trace in Sentry
-          // it means something unexpected has really occurred.
-          // fxa-shared is responsible for logging.
-          throw error.unexpectedError();
-        }
-      };
-    } else {
-      object[key] = value;
+  touchSessionToken(uid, token) {
+    return this.redis.touchSessionToken(uid, JSON.stringify(token));
+  }
+
+  pruneSessionTokens(uid, tokenIds) {
+    return this.redis.pruneSessionTokens(uid, JSON.stringify(tokenIds));
+  }
+
+  async getSessionTokens(uid) {
+    try {
+      const value = await this.redis.getSessionTokens(uid);
+      return JSON.parse(value);
+    } catch (e) {
+      this.log.error('redis', e);
+      return {};
     }
+  }
 
-    return object;
-  }, {});
+  close() {
+    return this.redis.quit();
+  }
+
+  del(key) {
+    return this.redis.del(key);
+  }
+
+  get(key) {
+    return this.redis.get(key);
+  }
+
+  set(key, val) {
+    return this.redis.set(key, val);
+  }
+  zadd(key, ...args) {
+    return this.redis.zadd(key, ...args);
+  }
+  zrange(key, start, stop, withScores) {
+    if (withScores) {
+      return this.redis.zrange(key, start, stop, 'WITHSCORES');
+    }
+    return this.redis.zrange(key, start, stop);
+  }
+  zrangebyscore(key, min, max) {
+    return this.redis.zrangebyscore(key, min, max);
+  }
+  zrem(key, ...members) {
+    return this.redis.zrem(key, members);
+  }
+  zrevrange(key, start, stop) {
+    return this.redis.zrevrange(key, start, stop);
+  }
+  zrevrangebyscore(key, min, max) {
+    return this.redis.zrevrangebyscore(key, min, max);
+  }
+
+  async zpoprangebyscore(key, min, max) {
+    const args = Array.from(arguments);
+    const results = await this.redis
+      .multi()
+      .zrangebyscore(...args)
+      .zremrangebyscore(key, min, max)
+      .exec();
+    return results[0][1];
+  }
+}
+
+module.exports = (config, log) => {
+  if (!config.enabled) {
+    return;
+  }
+  return new FxaRedis(config, log);
 };

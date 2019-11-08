@@ -7,7 +7,6 @@ import * as supportedLanguages from './l10n/supportedLanguages.json';
 import * as amplitude from './metrics/amplitude';
 import * as scopes from './oauth/scopes';
 import * as promise from './promise';
-import * as redis from './redis';
 
 module.exports = {
   email: {
@@ -24,5 +23,4 @@ module.exports = {
     scopes,
   },
   promise,
-  redis,
 };

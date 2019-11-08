@@ -9,37 +9,6 @@ const P = require('./promise');
 const Pool = require('./pool');
 const random = require('./crypto/random');
 
-// To save space in Redis, we serialise session token updates as arrays using
-// fixed property indices, thereby not encoding any property names. The order
-// of those properties is defined here in REDIS_SESSION_TOKEN_PROPERTIES and
-// REDIS_SESSION_TOKEN_LOCATION_PROPERTIES. Note that, to maintain backwards
-// compatibility, any future changes to these constants may only append items
-// to the end of each array. There's no safe way to change the array index for
-// any property, without introducing an explicit migration process for our Redis
-// instance.
-const REDIS_SESSION_TOKEN_PROPERTIES = [
-  'lastAccessTime',
-  'location',
-  'uaBrowser',
-  'uaBrowserVersion',
-  'uaOS',
-  'uaOSVersion',
-  'uaDeviceType',
-  'uaFormFactor',
-];
-
-const REDIS_SESSION_TOKEN_LOCATION_INDEX = REDIS_SESSION_TOKEN_PROPERTIES.indexOf(
-  'location'
-);
-
-const REDIS_SESSION_TOKEN_LOCATION_PROPERTIES = [
-  'city',
-  'state',
-  'stateCode',
-  'country',
-  'countryCode',
-];
-
 module.exports = (config, log, Token, UnblockCode = null) => {
   const features = require('./features')(config);
   const SafeUrl = require('./safe-url')(log);
@@ -322,26 +291,19 @@ module.exports = (config, log, Token, UnblockCode = null) => {
           .then(() => sessionTokens);
       }),
     ];
-    let isRedisOk = true;
 
     if (this.redis) {
-      promises.push(
-        this.safeRedisGet(uid).then(result => {
-          if (result === false) {
-            // Ensure that we don't return lastAccessTime if redis is down
-            isRedisOk = false;
-          }
-          return this.safeUnpackTokensFromRedis(uid, result);
-        })
-      );
+      promises.push(this.redis.getSessionTokens(uid));
     }
 
     return P.all(promises).spread(
       (mysqlSessionTokens, redisSessionTokens = {}) => {
+        // console.error(uid, redisSessionTokens)
         // for each db session token, if there is a matching redis token
         // overwrite the properties of the db token with the redis token values
-        const lastAccessTimeEnabled =
-          isRedisOk && features.isLastAccessTimeEnabledForUser(uid);
+        const lastAccessTimeEnabled = features.isLastAccessTimeEnabledForUser(
+          uid
+        );
         const sessions = mysqlSessionTokens.map(sessionToken => {
           const id = sessionToken.tokenId;
           const redisToken = redisSessionTokens[id];
@@ -545,23 +507,15 @@ module.exports = (config, log, Token, UnblockCode = null) => {
     }
 
     const promises = [this.pool.get(SAFE_URLS.devices, { uid })];
-    let isRedisOk = true;
 
     if (this.redis) {
-      promises.push(
-        this.safeRedisGet(uid).then(result => {
-          if (result === false) {
-            // Ensure that we don't return lastAccessTime if redis is down
-            isRedisOk = false;
-          }
-          return this.safeUnpackTokensFromRedis(uid, result);
-        })
-      );
+      promises.push(this.redis.getSessionTokens(uid));
     }
     return P.all(promises)
       .spread((devices, redisSessionTokens = {}) => {
-        const lastAccessTimeEnabled =
-          isRedisOk && features.isLastAccessTimeEnabledForUser(uid);
+        const lastAccessTimeEnabled = features.isLastAccessTimeEnabledForUser(
+          uid
+        );
         return devices.map(device => {
           return mergeDeviceInfoFromRedis(
             device,
@@ -627,34 +581,28 @@ module.exports = (config, log, Token, UnblockCode = null) => {
     if (!this.redis || !features.isLastAccessTimeEnabledForUser(uid)) {
       return P.resolve();
     }
-
-    return this.redis.update(uid, sessionTokens => {
-      let location;
-      if (geo && geo.location) {
-        location = {
-          city: geo.location.city,
-          country: geo.location.country,
-          countryCode: geo.location.countryCode,
-          state: geo.location.state,
-          stateCode: geo.location.stateCode,
-        };
-      }
-
-      sessionTokens = unpackTokensFromRedis(sessionTokens);
-
-      sessionTokens[id] = {
-        lastAccessTime: token.lastAccessTime,
-        location,
-        uaBrowser: token.uaBrowser,
-        uaBrowserVersion: token.uaBrowserVersion,
-        uaDeviceType: token.uaDeviceType,
-        uaFormFactor: token.uaFormFactor,
-        uaOS: token.uaOS,
-        uaOSVersion: token.uaOSVersion,
+    let location;
+    if (geo && geo.location) {
+      location = {
+        city: geo.location.city,
+        country: geo.location.country,
+        countryCode: geo.location.countryCode,
+        state: geo.location.state,
+        stateCode: geo.location.stateCode,
       };
-
-      return packTokensForRedis(sessionTokens);
-    });
+    }
+    const t = {
+      lastAccessTime: token.lastAccessTime,
+      location,
+      uaBrowser: token.uaBrowser,
+      uaBrowserVersion: token.uaBrowserVersion,
+      uaDeviceType: token.uaDeviceType,
+      uaFormFactor: token.uaFormFactor,
+      uaOS: token.uaOS,
+      uaOSVersion: token.uaOSVersion,
+      id,
+    };
+    return this.redis.touchSessionToken(uid, t);
   };
 
   /**
@@ -716,19 +664,7 @@ module.exports = (config, log, Token, UnblockCode = null) => {
       return P.resolve();
     }
 
-    return this.redis.update(uid, sessionTokens => {
-      if (!sessionTokens) {
-        return;
-      }
-
-      sessionTokens = unpackTokensFromRedis(sessionTokens);
-
-      tokenIds.forEach(id => delete sessionTokens[id]);
-
-      if (Object.keys(sessionTokens).length > 0) {
-        return packTokensForRedis(sessionTokens);
-      }
-    });
+    return this.redis.pruneSessionTokens(uid, tokenIds);
   };
 
   SAFE_URLS.device = new SafeUrl('/account/:uid/device/:deviceId', 'db.device');
@@ -737,23 +673,15 @@ module.exports = (config, log, Token, UnblockCode = null) => {
 
     const promises = [this.pool.get(SAFE_URLS.device, { uid, deviceId })];
 
-    let isRedisOk = true;
     if (this.redis) {
-      promises.push(
-        this.safeRedisGet(uid).then(result => {
-          if (result === false) {
-            // Ensure that we don't return lastAccessTime if redis is down
-            isRedisOk = false;
-          }
-          return this.safeUnpackTokensFromRedis(uid, result);
-        })
-      );
+      promises.push(this.redis.getSessionTokens(uid));
     }
 
     return P.all(promises)
       .spread((device, redisSessionTokens = {}) => {
-        const lastAccessTimeEnabled =
-          isRedisOk && features.isLastAccessTimeEnabledForUser(uid);
+        const lastAccessTimeEnabled = features.isLastAccessTimeEnabledForUser(
+          uid
+        );
         return mergeDeviceInfoFromRedis(
           device,
           redisSessionTokens,
@@ -1598,53 +1526,12 @@ module.exports = (config, log, Token, UnblockCode = null) => {
     return this.pool.get(SAFE_URLS.fetchAccountSubscriptions, { uid });
   };
 
-  DB.prototype.safeRedisGet = function(key) {
-    return this.redis.get(key).catch(err => {
-      log.error('redis.get.error', { key, err: err.message });
-      // Allow callers to distinguish between the null result and connection errors
-      return false;
-    });
-  };
-
-  // Unpacks a tokens string from Redis, with logic to recover from it being
-  // invalid JSON. In this case, "recover" means "delete the data from Redis and
-  // return an empty object to the caller". We've seen this situation occur once
-  // in prod, but we're not sure how it came about:
-  //
-  //     https://github.com/mozilla/fxa-auth-server/issues/2537
-  //
-  DB.prototype.safeUnpackTokensFromRedis = function(uid, tokens) {
-    return P.resolve()
-      .then(() => unpackTokensFromRedis(tokens))
-      .catch(err => {
-        log.error('db.unpackTokensFromRedis.error', { err: err.message });
-
-        if (err instanceof SyntaxError) {
-          return this.redis.del(uid).then(() => ({}));
-        }
-
-        throw err;
-      });
-  };
-
   DB.prototype.deleteSessionTokenFromRedis = function(uid, id) {
     if (!this.redis) {
       return P.resolve();
     }
 
-    return this.redis.update(uid, sessionTokens => {
-      if (!sessionTokens) {
-        return;
-      }
-
-      sessionTokens = unpackTokensFromRedis(sessionTokens);
-
-      delete sessionTokens[id];
-
-      if (Object.keys(sessionTokens).length > 0) {
-        return packTokensForRedis(sessionTokens);
-      }
-    });
+    return this.redis.pruneSessionTokens(uid, [id]);
   };
 
   function mergeDeviceInfoFromRedis(
@@ -1677,96 +1564,6 @@ module.exports = (config, log, Token, UnblockCode = null) => {
       uaDeviceType: mergedInfo.uaDeviceType,
       uaFormFactor: mergedInfo.uaFormFactor,
     };
-  }
-
-  // Reduce redis memory usage by not encoding the keys. Store properties
-  // as fixed indices into arrays instead. Takes an unpacked session tokens
-  // structure as its argument, returns the packed string.
-  function packTokensForRedis(tokens) {
-    return JSON.stringify(
-      Object.keys(tokens).reduce((result, tokenId) => {
-        const unpackedToken = tokens[tokenId];
-
-        result[tokenId] = truncatePackedArray(
-          REDIS_SESSION_TOKEN_PROPERTIES.map((property, index) => {
-            const value = unpackedToken[property];
-
-            if (index === REDIS_SESSION_TOKEN_LOCATION_INDEX && value) {
-              return truncatePackedArray(
-                REDIS_SESSION_TOKEN_LOCATION_PROPERTIES.map(
-                  locationProperty => value[locationProperty]
-                )
-              );
-            }
-
-            return unpackedToken[property];
-          })
-        );
-
-        return result;
-      }, {})
-    );
-  }
-
-  // Trailing null and undefined don't need to be stored.
-  function truncatePackedArray(array) {
-    const length = array.length;
-    if (length === 0) {
-      return array;
-    }
-
-    const item = array[length - 1];
-    if (item !== null && item !== undefined) {
-      return array;
-    }
-
-    array.pop();
-
-    return truncatePackedArray(array);
-  }
-
-  // Sanely unpack both the packed and raw formats from redis. Takes a redis
-  // result as it's argument (may be null or a stringified mish mash of packed
-  // and/or unpacked stored tokens), returns the unpacked session tokens
-  // structure.
-  function unpackTokensFromRedis(tokens) {
-    if (!tokens) {
-      return {};
-    }
-
-    tokens = JSON.parse(tokens);
-
-    return Object.keys(tokens).reduce((result, tokenId) => {
-      const packedToken = tokens[tokenId];
-
-      if (Array.isArray(packedToken)) {
-        const unpackedToken = unpackToken(
-          packedToken,
-          REDIS_SESSION_TOKEN_PROPERTIES
-        );
-
-        const location = unpackedToken.location;
-        if (Array.isArray(location)) {
-          unpackedToken.location = unpackToken(
-            location,
-            REDIS_SESSION_TOKEN_LOCATION_PROPERTIES
-          );
-        }
-
-        result[tokenId] = unpackedToken;
-      } else {
-        result[tokenId] = packedToken;
-      }
-
-      return result;
-    }, {});
-  }
-
-  function unpackToken(packedToken, properties) {
-    return properties.reduce((result, property, index) => {
-      result[property] = packedToken[index];
-      return result;
-    }, {});
   }
 
   function wrapTokenNotFoundError(err) {

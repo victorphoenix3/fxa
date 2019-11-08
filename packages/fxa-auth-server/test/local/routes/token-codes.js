@@ -43,13 +43,6 @@ describe('/session/verify/token', () => {
       assert.equal(args.length, 2);
       assert.equal(args[0], 'ASEFJK12');
     });
-
-    it('called log.info correctly', () => {
-      assert.equal(log.info.callCount, 2);
-      const args = log.info.args[1];
-      assert.equal(args.length, 2);
-      assert.equal(args[0], 'account.token.code.verified');
-    });
   });
 
   describe('should not verify expired code', () => {

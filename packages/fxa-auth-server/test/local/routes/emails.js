@@ -1088,7 +1088,7 @@ describe('/recovery_email', () => {
           'call db.deleteAccount'
         );
         assert.equal(mockDB.createEmail.callCount, 1, 'call db.createEmail');
-        let args = mockDB.createEmail.getCall(0).args;
+        const args = mockDB.createEmail.getCall(0).args;
         assert.equal(
           args[1].email,
           TEST_EMAIL_ADDITIONAL,
@@ -1099,12 +1099,6 @@ describe('/recovery_email', () => {
           1,
           'call mailer.sendVerifySecondaryEmail'
         );
-
-        assert.equal(mockLog.info.callCount, 5);
-        args = mockLog.info.args[4];
-        assert.lengthOf(args, 2);
-        assert.equal(args[0], 'accountDeleted.unverifiedSecondaryEmail');
-        assert.equal(args[1].normalizedEmail, TEST_EMAIL);
       }).then(() => {
         mockDB.deleteAccount.resetHistory();
         mockDB.createEmail.resetHistory();
