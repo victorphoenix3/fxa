@@ -469,38 +469,13 @@ MysqlStore.prototype = {
     var hash = encrypt.hash(code);
     return this._write(QUERY_CODE_DELETE, [hash]);
   },
-  generateAccessToken: function generateAccessToken(vals) {
-    var t = {
-      clientId: buf(vals.clientId),
-      userId: buf(vals.userId),
-      email: vals.email,
-      scope: vals.scope,
-      token: unique.token(),
-      type: 'bearer',
-      expiresAt:
-        vals.expiresAt || new Date(Date.now() + (vals.ttl * 1000 || MAX_TTL)),
-      profileChangedAt: vals.profileChangedAt || 0,
-    };
-    return this._write(QUERY_ACCESS_TOKEN_INSERT, [
-      t.clientId,
-      t.userId,
-      t.email,
-      t.scope.toString(),
-      t.type,
-      t.expiresAt,
-      encrypt.hash(t.token),
-      t.profileChangedAt,
-    ]).then(function() {
-      return t;
-    });
-  },
 
   /**
    * Get an access token by token id
    * @param id Token Id
    * @returns {*}
    */
-  getAccessToken: function getAccessToken(id) {
+  _getAccessToken: function _getAccessToken(id) {
     return this._readOne(QUERY_ACCESS_TOKEN_FIND, [buf(id)]).then(function(t) {
       if (t) {
         t.scope = ScopeSet.fromString(t.scope);
@@ -514,7 +489,7 @@ MysqlStore.prototype = {
    * @param id
    * @returns {*}
    */
-  removeAccessToken: function removeAccessToken(id) {
+  _removeAccessToken: function _removeAccessToken(id) {
     return this._write(QUERY_ACCESS_TOKEN_DELETE, [buf(id)]);
   },
 
@@ -523,7 +498,7 @@ MysqlStore.prototype = {
    * @param {String} uid User ID as hex
    * @returns {Promise}
    */
-  getActiveClientsByUid: function getActiveClientsByUid(uid) {
+  _getActiveClientsByUid: function _getActiveClientsByUid(uid) {
     return this._read(QUERY_ACTIVE_CLIENT_TOKENS_BY_UID, [
       buf(uid),
       buf(uid),
@@ -540,7 +515,7 @@ MysqlStore.prototype = {
    * @param {String} uid User ID as hex
    * @returns {Promise}
    */
-  getAccessTokensByUid: async function getAccessTokensByUid(uid) {
+  _getAccessTokensByUid: async function _getAccessTokensByUid(uid) {
     const accessTokens = await this._read(QUERY_LIST_ACCESS_TOKENS_BY_UID, [
       buf(uid),
     ]);
@@ -936,7 +911,7 @@ MysqlStore.prototype = {
    * @param userId
    * @returns {Promise}
    */
-  removePublicAndCanGrantTokens: function removePublicAndCanGrantTokens(
+  _removePublicAndCanGrantTokens: function _removePublicAndCanGrantTokens(
     userId
   ) {
     const uid = buf(userId);

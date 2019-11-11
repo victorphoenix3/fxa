@@ -14,7 +14,8 @@ module.exports = function(nameOrLog) {
       return mozlog.logger;
     }
     // main key_server must set the log
-    if (process.mainModule.filename.includes('key_server')) {
+    const mainModule = process.mainModule;
+    if (mainModule && mainModule.filename.includes('key_server')) {
       throw new Error('uninitialized mozlog');
     }
     // probably a test

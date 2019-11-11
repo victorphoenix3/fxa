@@ -24,7 +24,7 @@ local function unpackArray(keys, values)
   return result
 end
 
-local function unpack(value)
+local function unpackSessions(value)
   if not value then
     return {}
   end
@@ -46,7 +46,8 @@ local function unpack(value)
   return result
 end
 
-local value = redis.call('get', KEYS[1])
-local result = cjson.encode(unpack(value))
+local uid = KEYS[1]
+local value = redis.call('get', uid)
+local result = cjson.encode(unpackSessions(value))
 return result
 -- TODO delete on unpack error

@@ -12,7 +12,8 @@ local function decode(value)
   return cjson.decode(value)
 end
 
-local tokens = decode(redis.call('get', KEYS[1]))
+local uid = KEYS[1]
+local tokens = decode(redis.call('get', uid))
 local tokenIds = decode(ARGV[1])
 
 for _, id in ipairs(tokenIds) do
@@ -20,8 +21,8 @@ for _, id in ipairs(tokenIds) do
 end
 
 if empty(tokens) then
-  return redis.call('del', KEYS[1])
+  return redis.call('del', uid)
 else
   local result = cjson.encode(tokens)
-  return redis.call('set', KEYS[1], result)
+  return redis.call('set', uid, result)
 end

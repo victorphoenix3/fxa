@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const unbuf = require('buf').unbuf.hex;
+const buf = require('buf').hex;
 
 const P = require('../../promise');
 
@@ -10,6 +11,120 @@ const config = require('../../../config');
 const encrypt = require('../encrypt');
 const logger = require('../logging')('db');
 const mysql = require('./mysql');
+const unique = require('../unique');
+const redis = require('../../redis');
+const MAX_TTL = config.get('oauthServer.expiration.accessToken');
+
+class OauthDB {
+  constructor() {
+    this.mysql = mysql.connect(config.get('oauthServer.mysql'));
+    this.mysql.then(async db => {
+      await preClients();
+      await scopes();
+    });
+    this.redis = redis({ enabled: true, prefix: 'oauth:' }, logger); //TODO oauth redis config
+    Object.keys(mysql.prototype).forEach(key => {
+      const self = this;
+      this[key] = async function() {
+        const db = await self.mysql;
+        return db[key].apply(db, Array.from(arguments));
+      };
+    });
+  }
+  disconnect() {}
+
+  async generateAccessToken(vals) {
+    // TODO wtf are the types
+    const uniqueToken = unique.token();
+    const t = {
+      clientId: vals.clientId.toString('hex'),
+      userId: vals.userId.toString('hex'),
+      email: vals.email,
+      scope: vals.scope.toString(),
+      token: uniqueToken.toString('hex'),
+      type: 'bearer',
+      expiresAt:
+        vals.expiresAt || new Date(Date.now() + (vals.ttl * 1000 || MAX_TTL)),
+      profileChangedAt: vals.profileChangedAt || 0,
+    };
+    const tokenId = encrypt.hash(uniqueToken).toString('hex');
+    await this.redis.setAccessToken(tokenId, t);
+    t.token = uniqueToken;
+    return t;
+  }
+
+  async getAccessToken(id) {
+    const tokenId = id.toString('hex');
+    let t = await this.redis.getAccessToken(tokenId);
+    if (t) {
+      return t;
+    }
+    // some might only be in mysql
+    // we can remove this code after all mysql tokens have expired
+    const db = await this.mysql;
+    return db._getAccessToken(id);
+  }
+
+  async removeAccessToken(id) {
+    const tokenId = id.toString('hex');
+    await this.redis.removeAccessToken(tokenId);
+    // some might only be in mysql
+    // we can remove this code after all mysql tokens have expired
+    const db = await this.mysql;
+    return db._removeAccessToken(id);
+  }
+
+  async getActiveClientsByUid(uid) {
+    const tokens = await this.redis.getAccessTokens(uid.toString('hex'));
+    const activeClientTokens = [];
+    const now = Date.now();
+    for (const token of tokens) {
+      if (token.expiredAt > now) {
+        // TODO > ? <
+        const client = await this.getClient(token.clientId);
+        if (client.canGrant === false) {
+          token.name = client.name;
+          activeClientTokens.push(token);
+        }
+      }
+    }
+    const db = await this.mysql;
+    const refreshTokens = await db.getRefreshTokensByUid(uid);
+    for (const token of refreshTokens) {
+      const client = await this.getClient(token.clientId);
+      activeClientTokens.push({
+        id: token.clientId,
+        createdAt: token.createdAt,
+        lastUsedAt: token.lastUsedAt,
+        name: client.name,
+        scope: token.scope,
+      });
+    }
+    // some might only be in mysql
+    // we can remove this code after all mysql tokens have expired
+    const olderTokens = await db._getActiveClientsByUid(uid);
+    return activeClientTokens.concat(olderTokens);
+  }
+
+  async getAccessTokensByUid(uid) {
+    const tokens = await this.redis.getAccessTokens(uid.toString('hex'));
+    for (const token of tokens) {
+      const client = await this.getClient(token.clientId);
+      // token.accessTokenId = buf(token.tokenId)
+      token.clientName = client.name;
+      token.clientCanGrant = client.canGrant;
+    }
+    // some might only be in mysql
+    // we can remove this code after all mysql tokens have expired
+    const db = await this.mysql;
+    const olderTokens = await db._getAccessTokensByUid(uid);
+    return tokens.concat(olderTokens);
+  }
+
+  removePublicAndCanGrantTokens(userId) {
+    return Promise.reject(new Error('not implemented'));
+  }
+}
 
 function clientEquals(configClient, dbClient) {
   var props = Object.keys(configClient);
@@ -98,7 +213,7 @@ function preClients() {
           return P.resolve();
         }
 
-        return exports.getClient(c.id).then(function(client) {
+        return module.exports.getClient(c.id).then(function(client) {
           if (client) {
             client = convertClientToConfigFormat(client);
             logger.info('client.compare', { id: c.id });
@@ -110,10 +225,10 @@ function preClients() {
                 before: client,
                 after: c,
               });
-              return exports.updateClient(c);
+              return module.exports.updateClient(c);
             }
           } else {
-            return exports.registerClient(c);
+            return module.exports.registerClient(c);
           }
         });
       })
@@ -133,73 +248,17 @@ function scopes() {
 
     return P.all(
       scopes.map(function(s) {
-        return exports.getScope(s.scope).then(function(existing) {
+        return module.exports.getScope(s.scope).then(function(existing) {
           if (existing) {
             logger.verbose('scopes.existing', s);
             return;
           }
 
-          return exports.registerScope(s);
+          return module.exports.registerScope(s);
         });
       })
     );
   }
 }
 
-var driver;
-function withDriver() {
-  if (driver) {
-    return P.resolve(driver);
-  }
-  const p = mysql.connect(config.get('oauthServer.mysql'));
-
-  return p
-    .then(function(store) {
-      logger.debug('connected', {
-        driver: 'mysql',
-      });
-      driver = store;
-    })
-    .then(exports._initialClients)
-    .then(function() {
-      return driver;
-    });
-}
-
-const proxyReturn = logger.isEnabledFor(logger.VERBOSE)
-  ? function verboseReturn(promise, method) {
-      return promise.then(function(ret) {
-        logger.verbose('proxied', { method: method, ret: ret });
-        return ret;
-      });
-    }
-  : function identity(x) {
-      return x;
-    };
-
-function proxy(method) {
-  return function proxied() {
-    var args = arguments;
-    return withDriver()
-      .then(function(driver) {
-        logger.verbose('proxying', { method: method, args: args });
-        return proxyReturn(driver[method].apply(driver, args), method);
-      })
-      .catch(function(err) {
-        logger.error(method, err);
-        throw err;
-      });
-  };
-}
-
-Object.keys(mysql.prototype).forEach(function(key) {
-  exports[key] = proxy(key);
-});
-
-exports.disconnect = function disconnect() {
-  driver = null;
-};
-
-exports._initialClients = function() {
-  return preClients().then(scopes);
-};
+module.exports = new OauthDB();

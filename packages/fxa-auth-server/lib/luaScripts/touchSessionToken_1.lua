@@ -40,10 +40,11 @@ local function decode(value)
   return cjson.decode(value)
 end
 
+local uid = KEYS[1]
 local update = cjson.decode(ARGV[1])
-local tokens = decode(redis.call('get', KEYS[1]))
+local tokens = decode(redis.call('get', uid))
 
 tokens[update.id] = packToken(update)
 
 local result = cjson.encode(tokens)
-return redis.call('set', KEYS[1], result)
+return redis.call('set', uid, result)

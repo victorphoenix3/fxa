@@ -5,6 +5,7 @@
 'use strict';
 
 const Redis = require('ioredis');
+const ScopeSet = require('../../fxa-shared').oauth.scopes;
 const { readdirSync, readFileSync } = require('fs');
 const { basename, extname, resolve } = require('path');
 
@@ -28,10 +29,11 @@ class FxaRedis {
     scriptNames.forEach(name => this.defineCommand(name));
   }
 
-  defineCommand(name, numberOfKeys = 1) {
+  defineCommand(scriptName) {
+    const [name, numberOfKeys] = scriptName.split('_');
     this.redis.defineCommand(name, {
-      lua: readScript(name),
-      numberOfKeys,
+      lua: readScript(scriptName),
+      numberOfKeys: +numberOfKeys,
     });
   }
 
@@ -51,6 +53,43 @@ class FxaRedis {
       this.log.error('redis', e);
       return {};
     }
+  }
+
+  async getAccessToken(tokenId) {
+    try {
+      const value = await this.redis.getAccessToken(tokenId);
+      const token = JSON.parse(value);
+      token.userId = Buffer.from(token.userId, 'hex');
+      token.clientId = Buffer.from(token.clientId, 'hex');
+      token.scope = ScopeSet.fromString(token.scope);
+      token.token = Buffer.from(token.token, 'hex');
+      return token;
+    } catch (e) {
+      this.log.error('redis', e);
+      return null;
+    }
+  }
+
+  async getAccessTokens(uid) {
+    try {
+      const values = await this.redis.getAccessTokens(uid);
+      return values.map(v => JSON.parse(v));
+    } catch (e) {
+      this.log.error('redis', e);
+      return [];
+    }
+  }
+
+  setAccessToken(tokenId, token) {
+    return this.redis.setAccessToken(
+      token.userId,
+      tokenId,
+      JSON.stringify(token)
+    );
+  }
+
+  removeAccessToken(tokenId) {
+    return this.redis.removeAccessToken(tokenId);
   }
 
   close() {
