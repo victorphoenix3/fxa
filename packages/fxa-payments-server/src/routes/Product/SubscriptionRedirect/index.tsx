@@ -47,18 +47,18 @@ export const SubscriptionRedirect = ({ plan }: SubscriptionRedirectProps) => {
       <div className="subscription-ready">
         <div className="subscription-message">
           <h2>Your subscription is ready</h2>
+          <div className="exp-message">
+            Please take a moment to tell us about your experience.
+          </div>
         </div>
-        <div className="form-break-top break-buffer"></div>
-        <div className="exp-message">
-          Please take a moment to tell us about your experience.
-        </div>
+        <hr />
         <div className="survey-frame">
           <iframe
             sandbox="allow-scripts allow-forms"
+            scrolling="no"
             src="http://www.surveygizmo.com/s3/5294819/VPN-Subscription?__no_style=true"
           ></iframe>
         </div>
-        <div className="form-break-bottom break-buffer"></div>
         <div>
           <a href={redirectUrl}>No thanks, just take me to my product.</a>
         </div>
