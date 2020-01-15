@@ -33,7 +33,7 @@ config.set('oauthServer.db.autoUpdateClients', false);
 
 program
   .version(package.version)
-  .option('-c, --config [config]', 'Configuration to use. Ex. dev')
+  .option('-c, --config [config]', 'Configuration to use. Ex. development')
   .option(
     '-p, --pocket-id <pocketId>',
     'Pocket Client Ids. These tokens will not be purged. (CSV)'
@@ -54,7 +54,7 @@ program
   .parse(process.argv);
 
 if (!program.config) {
-  program.config = 'dev';
+  program.config = 'development';
 }
 
 process.env.NODE_ENV = program.config;

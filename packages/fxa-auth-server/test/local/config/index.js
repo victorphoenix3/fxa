@@ -9,7 +9,7 @@ const proxyquire = require('proxyquire');
 const ROOT_DIR = '../../..';
 
 describe('Config', () => {
-  describe('NODE_ENV=prod', () => {
+  describe('NODE_ENV=production', () => {
     let originalEnv;
 
     function mockEnv(key, value) {
@@ -19,7 +19,7 @@ describe('Config', () => {
 
     beforeEach(() => {
       originalEnv = {};
-      mockEnv('NODE_ENV', 'prod');
+      mockEnv('NODE_ENV', 'production');
     });
 
     afterEach(() => {
@@ -31,7 +31,7 @@ describe('Config', () => {
     it('errors when secret settings have their default values', () => {
       assert.throws(() => {
         proxyquire(`${ROOT_DIR}/config`, {});
-      // eslint-disable-next-line no-useless-escape
+        // eslint-disable-next-line no-useless-escape
       }, /Config \'[a-zA-Z.]+\' must be set in production/);
     });
 

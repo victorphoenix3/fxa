@@ -14,7 +14,7 @@ const conf = convict({
   env: {
     doc: 'The current node.js environment',
     default: 'prod',
-    format: ['dev', 'test', 'stage', 'prod'],
+    format: ['development', 'test', 'stage', 'production'],
     env: 'NODE_ENV',
   },
   geodb: {
@@ -905,7 +905,7 @@ const conf = convict({
       arg: 'node-env',
       doc: 'The current node.js environment',
       env: 'NODE_ENV',
-      format: ['dev', 'test', 'stage', 'prod'],
+      format: ['development', 'test', 'stage', 'production'],
       default: 'prod',
     },
     events: {

@@ -2594,7 +2594,7 @@ const sendVerificationReminders = thenify(function() {
       cwd,
       env: {
         ...process.env,
-        NODE_ENV: 'dev',
+        NODE_ENV: 'development',
       },
       stdio: 'ignore',
       timeout: this.timeout,
